@@ -7,4 +7,8 @@ const app = createApp(App);
 app.use(router);
 app.mount("#app");
 microApps.register();
-microApps.start();
+microApps.start({
+  sandbox: {
+    strictStyleIsolation: true, // 推荐开启，样式隔离
+  },
+});

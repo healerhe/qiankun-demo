@@ -20,6 +20,11 @@ const microApps = [
     name: 'sub-app-two',
     entry: '//localhost:3002',
     activeRule: '/sub-two'
+  },
+  {
+    name: 'sub-app-three', // 必须与子应用 output.library 一致
+    entry: '//localhost:7100', // 子应用地址
+    activeRule: '/sub-three', // 激活路径
   }
 ]
 // 生命周期处理

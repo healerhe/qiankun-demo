@@ -367,7 +367,7 @@ export default defineComponent({
 </style>
 ```
 
-### 2.2 Vite 子应用 (child-one-app  child-two-app)
+### 2.2 Vite 子应用 (child-one-app child-two-app)
 
 在之前的介绍里面我们有提到，qiankun 是通过团队实现的 import-html-entry 这个库来解析子应用的入口 html 文件，获取到对应的 script、css 等资源之后在通过 eval 执行的。
 但是 Vite 在开发模式下采用的是 GO 语言开发的 esbuild 来进行构建，并且只对 vue, jsx, (le|sc)ss 等文件进行简单的编辑和转换，直接以 esm 的形式提供给浏览器使用，所以 Vite 才能做到几乎秒开。
@@ -549,4 +549,171 @@ module.exports = {
 };
 ```
 
-React 应用和 Angular 应用在 Webpack 方面的配置与 Vue 基本相似，只是在 mian.js （也就是主入口文件）内的应用实例化有一些区别。
+### 2.4 React 子应用
+
+#### 2.4.1：集成
+
+1. 创建或准备一个 React 子应用
+   `npx create-react-app qiankun-sub-react-app
+cd qiankun-sub-react-app`
+
+2. 修改子应用，支持 qiankun
+
+- 修改 src/index.js
+
+```javascript
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+
+// 用于保存 root 实例
+let root = null;
+
+// qiankun 生命周期：初始化
+export async function bootstrap() {
+  console.log("React app is bootstrapping");
+}
+
+// qiankun 生命周期：挂载
+export async function mount(props) {
+  console.log("React app is mounting", props);
+
+  // 获取容器 DOM 节点（由主应用传入）
+  const container = props.container || document.getElementById("root");
+  const dom = container.querySelector("#root") || container;
+
+  root = ReactDOM.createRoot(dom);
+  root.render(<App />);
+}
+
+// qiankun 生命周期：卸载
+export async function unmount() {
+  console.log("React app is unmounting");
+  if (root) {
+    root.unmount();
+  }
+}
+
+// 如果不是在 qiankun 环境下运行，直接启动应用（独立运行）
+if (!window.__POWERED_BY_QIANKUN__) {
+  const container = document.getElementById("root");
+  root = ReactDOM.createRoot(container);
+  root.render(<App />);
+}
+```
+
+- 修改 public/index.html
+  确保根节点有明确的 ID，并支持动态加载：
+
+```html
+深色版本
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Qiankun React Sub App</title>
+  </head>
+  <body>
+    <!-- qiankun 会将此节点作为挂载点 -->
+    <div id="root"></div>
+  </body>
+</html>
+```
+
+- 配置子应用的打包（支持跨域和模块联邦）
+
+1. 安装 react-app-rewired（因为 CRA 默认不支持修改 webpack 配置）
+
+`npm install react-app-rewired --save-dev` 2. 创建 config-overrides.js 在项目根目录
+
+```js
+const path = require("path");
+
+module.exports = function override(config, env) {
+  // 1. 设置模块运行在 umd 模式
+  config.output.library = `${
+    process.env.REACT_APP_NAME || "qiankunSubApp"  // 与注册的子微服务名称要一致
+  }-[name]`;
+  config.output.libraryTarget = "umd";
+  config.output.globalObject = "window";
+
+  // 2. 修改 publicPath，支持动态加载资源
+  config.output.publicPath = "/";
+
+  // 3. 确保开发服务器允许跨域（子应用需跨域被主应用加载）
+  if (env === "development") {
+    config.devServer.headers = {
+      "Access-Control-Allow-Origin": "*",
+    };
+  }
+
+  return config;
+};
+```
+
+3. 修改 package.json
+
+```json
+{
+  "name": "qiankun-sub-react-app",
+  "version": "0.1.0",
+  "private": false, // 必须设为 false，否则 webpack 5 无法作为远程模块
+  "scripts": {
+    "start": "react-app-rewired start",
+    "build": "react-app-rewired build",
+    "test": "react-app-rewired test"
+  },
+  "proxy": "http://localhost:5173/", // 改成主应用的服务地址 http://localhost:5173/
+  "devDependencies": {
+    "react-app-rewired": "^2.2.1"
+  }
+}
+```
+
+4. 添加环境变量 .env
+
+```env
+# 子应用名称，需与主应用注册时一致
+REACT_APP_NAME=qiankunSubApp
+```
+
+- 子应用启动端口
+  PORT=7100
+  `npm start`
+
+#### 2.4.2 在主应用中注册该子应用
+
+在 micro-apps.ts 中添加：
+
+```js
+import { registerMicroApps, start } from "qiankun";
+
+registerMicroApps([
+  {
+    name: "qiankunSubApp", // 必须与子应用 output.library 一致
+    entry: "//localhost:7100", // 子应用地址
+    container: "#subapp-viewport", // 主应用中用于挂载的 DOM 节点
+    activeRule: "/app-react", // 激活路径
+  },
+]);
+
+start({
+  sandbox: {
+    strictStyleIsolation: true, // 推荐开启，样式隔离
+  },
+  // 可选：加载状态钩子
+  fetch: (url) => {
+    console.log("Loading:", url);
+    return window.fetch(url);
+  },
+});
+```
+
+### 2.5 angular 子应用
+
+Angular 应用在 Webpack 方面的配置与 Vue 基本相似，只是在 mian.js （也就是主入口文件）内的应用实例化有一些区别。
+TODO
+
+```
+
+```

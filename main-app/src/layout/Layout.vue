@@ -4,9 +4,9 @@
       <router-link to="/login">to Login</router-link>
       <router-link to="/home">to Home</router-link>
       <router-link to="/about">to About</router-link>
-      <router-link to="/sub-one">to Sub One</router-link>
-      <router-link to="/sub-two">to Sub Two</router-link>
-      <router-link to="/sub-three">to Sub Three</router-link>
+      <router-link to="/vue-vite">to Sub Vue+vite 子应用One</router-link>
+      <router-link to="/vue3">to Sub Vue3 子应用Two</router-link>
+      <router-link to="/react">to Sub React 子应用</router-link>
     </div>
     <div class="main-header">Main App Header</div>
     <div class="main-container">

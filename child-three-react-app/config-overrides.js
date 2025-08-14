@@ -3,7 +3,7 @@ const path = require("path");
 module.exports = function override(config, env) {
   // 1. 设置模块运行在 umd 模式
   config.output.library = `${
-    process.env.REACT_APP_NAME || "sub-app-three"
+    process.env.REACT_APP_NAME || "sub-app-three" // 与注册的子微服务名称要一致
   }-[name]`;
   config.output.libraryTarget = "umd";
   config.output.globalObject = "window";

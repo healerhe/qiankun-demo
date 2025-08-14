@@ -163,7 +163,7 @@ const microApps = [
   {
     name: "sub-app-one",
     entry: "//localhost:3001",
-    activeRule: "/sub-one",
+    activeRule: "/vue-vite",
   },
 ];
 // 生命周期处理
@@ -251,32 +251,6 @@ export default defineComponent({
 </script>
 ```
 
-```vue
-// Layout.vue，这里省略了样式部分
-<template>
-  <div class="main-content">
-    <div class="main-slider">
-      <router-link to="/login">to Login</router-link>
-      <router-link to="/home">to Home</router-link>
-      <router-link to="/about">to About</router-link>
-      <router-link to="/sub-one">to Sub One</router-link>
-    </div>
-    <div class="main-header">Main App Header</div>
-    <div class="main-container">
-      <p>Main App Container</p>
-      <router-view />
-      <div id="sub-container"></div>
-    </div>
-  </div>
-</template>
-<script lang="ts">
-import { defineComponent } from "vue";
-export default defineComponent({
-  name: "LayoutContent",
-});
-</script>
-```
-
 之后，我们还需要一个用来挂载所有子应用的通用页面组件 SubApp.vue，这个组件也很简单，只需要包含一个子应用注册时所使用的 id 的 dom 节点即可：
 
 ```vue
@@ -347,8 +321,20 @@ export default router;
 ```vue
 // App.vue
 <template>
+  <h1>主应用 - Vue + Vite</h1>
+  <nav>
+    <router-link to="/">首页</router-link> |
+    <router-link to="/login">to Login</router-link>
+    <router-link to="/home">to Home</router-link>
+    <router-link to="/about">to About</router-link>
+    <router-link to="/vue-vite">to Sub Vue+vite 子应用One</router-link>
+    <router-link to="/vue3">to Sub Vue3 子应用Two</router-link>
+    <router-link to="/react">to Sub React 子应用</router-link>
+  </nav>
   <div id="app">
     <router-view />
+    <!-- 子应用挂载点 -->
+    <section id="sub-container" />
   </div>
 </template>
 <script lang="ts">
@@ -364,10 +350,14 @@ export default defineComponent({
   flex-direction: row;
   gap: 12px;
 }
+nav {
+  display: flex;
+  gap: 16px;
+}
 </style>
 ```
 
-### 2.2 Vite 子应用 (child-one-app child-two-app)
+### 2.2 Vite 子应用 (child-one-vite-app)
 
 在之前的介绍里面我们有提到，qiankun 是通过团队实现的 import-html-entry 这个库来解析子应用的入口 html 文件，获取到对应的 script、css 等资源之后在通过 eval 执行的。
 但是 Vite 在开发模式下采用的是 GO 语言开发的 esbuild 来进行构建，并且只对 vue, jsx, (le|sc)ss 等文件进行简单的编辑和转换，直接以 esm 的形式提供给浏览器使用，所以 Vite 才能做到几乎秒开。
@@ -388,6 +378,7 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import qiankun from "vite-plugin-qiankun";
 export default defineConfig({
+  base: "http://localhost:3001/", // 必须配置成具体的服务地址，不然生产环境部署的时候会报错找不到js资源
   plugins: [
     vue(),
     // 需要在这里注册子应用名称，
@@ -419,7 +410,7 @@ let history: any = null;
 function render(props = {}) {
   const { container } = props;
   history = createWebHistory(
-    qiankunWindow.__POWERED_BY_QIANKUN__ ? "/sub-one" : "/"
+    qiankunWindow.__POWERED_BY_QIANKUN__ ? "/vue-vite" : "/"
   );
   router = createRouter({
     history,
@@ -709,7 +700,135 @@ start({
 });
 ```
 
-### 2.5 angular 子应用
+### 2.5 vue3 子应用（child-two-vue3-app）
+
+#### 2.5.1：集成
+1. 创建或准备一个 Vue3 子应用
+2. 修改子应用，支持 qiankun
+
+- 增加public-path.js
+```js
+if (window.__POWERED_BY_QIANKUN__) {
+  // eslint-disable-next-line no-undef
+  __webpack_public_path__ = window.__INJECTED_PUBLIC_PATH_BY_QIANKUN__;
+}
+```
+
+- 修改main.js
+```js
+import './public-path';
+import { createApp } from 'vue';
+import { createRouter, createWebHistory } from 'vue-router';
+import App from './App.vue';
+import routes from './router';
+import store from './store';
+
+let router = null;
+let instance = null;
+let history = null;
+
+
+function render(props = {}) {
+  const { container } = props;
+  history = createWebHistory(window.__POWERED_BY_QIANKUN__ ? '/vue3' : '/'); // 注意路径要与主应用中注册的activeRule一致
+  router = createRouter({
+    history,
+    routes,
+  });
+
+  instance = createApp(App);
+  instance.use(router);
+  instance.use(store);
+  instance.mount(container ? container.querySelector('#app') : '#app');
+}
+
+if (!window.__POWERED_BY_QIANKUN__) {
+  render();
+}
+
+export async function bootstrap() {
+  console.log('%c%s', 'color: green;', 'vue3.0 app bootstraped');
+}
+
+function storeTest(props) {
+  props.onGlobalStateChange &&
+    props.onGlobalStateChange(
+      (value, prev) => console.log(`[onGlobalStateChange - ${props.name}]:`, value, prev),
+      true,
+    );
+  props.setGlobalState &&
+    props.setGlobalState({
+      ignore: props.name,
+      user: {
+        name: props.name,
+      },
+    });
+}
+
+export async function mount(props) {
+  storeTest(props);
+  render(props);
+  instance.config.globalProperties.$onGlobalStateChange = props.onGlobalStateChange;
+  instance.config.globalProperties.$setGlobalState = props.setGlobalState;
+}
+
+export async function unmount() {
+  instance.unmount();
+  instance._container.innerHTML = '';
+  instance = null;
+  router = null;
+  history.destroy();
+}
+
+```
+
+- 修改vue.config.js
+```js
+const path = require('path');
+
+function resolve(dir) {
+  return path.join(__dirname, dir);
+}
+
+const port = 3002;
+
+const appName = 'sub-app-two' // appName必须与主应用中注册的子应用名称一致
+
+module.exports = {
+  outputDir: 'dist',
+  assetsDir: 'static',
+  filenameHashing: true,
+  devServer: {
+    hot: true,
+    disableHostCheck: true,
+    port,
+    overlay: {
+      warnings: false,
+      errors: true,
+    },
+    headers: {
+      'Access-Control-Allow-Origin': '*', // 确保开发服务器允许跨域（子应用需跨域被主应用加载）
+    },
+  },
+  // 自定义webpack配置
+  configureWebpack: {
+    resolve: {
+      alias: {
+        '@': resolve('src'),
+      },
+    },
+    output: {
+      // 必须 把子应用打包成 umd 库格式
+      library: `${appName}-[name]`, // 必须 与注册的子应用名称要一致
+      libraryTarget: 'umd',
+      jsonpFunction: `webpackJsonp_${appName}`,
+    },
+  },
+};
+
+```
+
+### 2.6 angular 子应用
 
 Angular 应用在 Webpack 方面的配置与 Vue 基本相似，只是在 mian.js （也就是主入口文件）内的应用实例化有一些区别。
 TODO
@@ -722,3 +841,15 @@ TODO
 
 https://qiankun.umijs.org/zh/guide/getting-started#2-%E5%9C%A8%E4%B8%BB%E5%BA%94%E7%94%A8%E4%B8%AD%E6%B3%A8%E5%86%8C%E5%BE%AE%E5%BA%94%E7%94%A8
 https://developer.aliyun.com/article/1116714
+
+
+## 4. 生产环境部署
+
+- 打包, 分别执行
+`npm run build`
+
+- 启动
+
+`// 简单启动 npm install -g server  server -s build -l ${port}` 
+
+应用：node+express  参考build/*.server.js文件

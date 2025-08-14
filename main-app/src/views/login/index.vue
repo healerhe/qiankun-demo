@@ -1,6 +1,6 @@
 <template>
   <div class="Login">
-    <h1>{{ name }} Page</h1>
+    <h1>Login Page</h1>
     <router-link to="/home">登录</router-link>
   </div>
 </template>

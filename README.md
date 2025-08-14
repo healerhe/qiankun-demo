@@ -841,6 +841,7 @@ TODO
 
 https://qiankun.umijs.org/zh/guide/getting-started#2-%E5%9C%A8%E4%B8%BB%E5%BA%94%E7%94%A8%E4%B8%AD%E6%B3%A8%E5%86%8C%E5%BE%AE%E5%BA%94%E7%94%A8
 https://developer.aliyun.com/article/1116714
+https://github.com/umijs/qiankun/tree/master/packages/
 
 
 ## 4. 生产环境部署
